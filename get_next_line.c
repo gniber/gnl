@@ -5,8 +5,8 @@
 /*                                                    +:+ +:+         +:+     */
 /*   By: heloufra <marvin@42.fr>                    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
-/*   Created: 2022/01/06 16:27:19 by heloufra          #+#    #+#             */
-/*   Updated: 2022/01/06 18:57:27 by heloufra         ###   ########.fr       */
+/*   Created: 2022/01/07 09:45:13 by heloufra          #+#    #+#             */
+/*   Updated: 2022/01/07 12:19:39 by heloufra         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -14,87 +14,96 @@
 
 char	*get_next_line(int fd)
 {
-	static char	*tracer;
+	static char	*left[OPEN_MAX];
 	char		*buffer;
+	char		*line;
 
 	if (fd < 0 || BUFFER_SIZE <= 0)
 		return (NULL);
-	if (!tracer)
-		tracer = ft_calloc(1, sizeof(char));
-	if (ft_strchr(tracer, '\n'))
+	if (!left[fd])
 	{
-		buffer = tracer;
-		return (pop_line(buffer, &tracer));
-	}
-	buffer = get_line(fd, &tracer);
-	if (!buffer)
-		return (NULL);
-	return (pop_line(buffer, &tracer));
-}
-
-char	*get_line(int fd, char **tracer)
-{
-	char	*string;
-	int		n;
-
-	n = 1;
-	string = ft_substr(tracer, 0, ft_strlen(*tracer));
-	if (!string)
-		return (NULL);
-	while (ft_strchr(string, '\n') == NULL && n)
-	{
-		n = extend_string(fd, &string);
-		if (n < 0)
+		left[fd] = ft_calloc(1, sizeof(char));
+		if (!left[fd])
 			return (NULL);
 	}
-	if (n == 0)
+	buffer = get_line(fd, left[fd]);
+	if (!buffer)
 	{
-		free(*tracer);
-		*tracer == NULL;
+		free(left[fd]);
+		left[fd] = NULL;
+		return (NULL);
 	}
-	return (string);
+	free(left[fd]);
+	line = pop_line(buffer, &left[fd]);
+	free(buffer);
+	return (line);
 }
 
-int	extend_string(int fd, char **string)
+char	*get_line(int fd, char *left)
 {
+	char	*s;
 	int		n;
-	char	*substring;
-	char	*holder;
 
-	substring = ft_calloc((BUFFER_SIZE + 1), sizeof(char));
-	if (!substring)
+	s = ft_substr(left, 0, ft_strlen(left));
+	if (!s)
+		return (NULL);
+	while (!ft_strchr(s, '\n'))
 	{
-		free(*string);
-		return (-1);
+		n = extend_line(fd, &s);
+		if (n == 0)
+			break ;
+		if (n < 0 || !s)
+			return (NULL);
 	}
-	n = read(fd, substring, BUFFER_SIZE);
+	return (s);
+}
+
+int	extend_line(int fd, char **s)
+{
+	char	*buffer;
+	char	*keeper;
+	int		n;
+
+	buffer = ft_calloc(BUFFER_SIZE + 1, sizeof(char));
+	if (!buffer)
+		return (-1);
+	n = read(fd, buffer, BUFFER_SIZE);
 	if (n < 0)
 	{
-		free(*string);
-		free(substring);
+		free(*s);
+		free(buffer);
 		return (-1);
 	}
-	holder = *string;
-	*string = ft_strjoin(*string, substring);
-	free(holder);
-	free(substring);
+	keeper = *s;
+	*s = ft_strjoin(*s, buffer);
+	free(keeper);
+	free(buffer);
+	if (n == 0 && **s == '\0')
+	{
+		free(*s);
+		return (-1);
+	}
 	return (n);
 }
 
-char	*pop_line(char *buffer, char **tracer)
+char	*pop_line(char *buffer, char **left)
 {
-	char	*line;
 	int		i;
+	char	*line;
 
 	i = 0;
 	while (buffer[i] && buffer[i] != '\n')
 		i++;
 	line = ft_substr(buffer, 0, i + 1);
+	if (!line)
+		return (NULL);
 	if (buffer[i])
 		i++;
-	if (*tracer)
-		*tracer = ft_substr(buffer, i, ft_strlen(&buffer[i]));
-	free(buffer);
+	*left = ft_substr(buffer, i, ft_strlen(&buffer[i]));
+	if (!*left)
+	{
+		free(line);
+		return (NULL);
+	}
 	return (line);
 }
-
